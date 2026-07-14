@@ -1,122 +1,68 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import React, { useState } from 'react';
 
 function App() {
-  const [count, setCount] = useState(0)
+  // ระบบสลับหน้าเมนู (Dashboard, TFEX, ตัดสต็อก)
+  const [currentTab, setCurrentTab] = useState('dashboard');
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased">
+      {/* Navigation Bar ด้านบน สไตล์ Apple Minimalist */}
+      <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/70 border-b border-slate-200/80 px-8 py-4 flex justify-between items-center">
+        <div className="flex items-center space-x-3">
+          <div className="w-3 h-3 rounded-full bg-amber-500 animate-pulse"></div>
+          <span className="text-lg font-semibold tracking-tight">Precious Metals HQ</span>
         </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
+        <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200/50">
+          <button 
+            onClick={() => setCurrentTab('dashboard')}
+            className={`px-5 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${currentTab === 'dashboard' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            Dashboard
+          </button>
+          <button 
+            onClick={() => setCurrentTab('tfex')}
+            className={`px-5 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${currentTab === 'tfex' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            TFEX
+          </button>
+          <button 
+            onClick={() => setCurrentTab('reconciliation')}
+            className={`px-5 py-2 text-sm font-medium rounded-xl transition-all duration-200 ${currentTab === 'reconciliation' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            ระบบตัดสต็อก
+          </button>
         </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+      </nav>
 
-      <div className="ticks"></div>
+      {/* พื้นที่แสดงเนื้อหาหลักของแต่ละหน้าจอ */}
+      <main className="max-w-7xl mx-auto p-8">
+        {currentTab === 'dashboard' && (
+          <div className="space-y-6 animate-fadeIn">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Executive Dashboard</h1>
+            <p className="text-slate-500 text-sm">ยินดีต้อนรับผู้บริหาร, ระบบเตรียมพร้อมคำนวณแบบ Real-time</p>
+            {/* จุดนี้ในอนาคตเราจะเอาการ์ดข้อมูลต่างๆ มาใส่ไว้ครับ */}
+            <div className="p-8 bg-white border border-slate-200/60 rounded-[2rem] shadow-sm backdrop-blur-sm">
+              <p className="text-slate-400 text-center text-sm py-12">กำลังเชื่อมต่อฐานข้อมูล Google Sheets...</p>
+            </div>
+          </div>
+        )}
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+        {currentTab === 'tfex' && (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">TFEX Management</h1>
+            <p className="text-slate-500 text-sm">จัดการสถานะและบริหารความเสี่ยงพอร์ตประกัน</p>
+          </div>
+        )}
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+        {currentTab === 'reconciliation' && (
+          <div className="space-y-6">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Stock Reconciliation</h1>
+            <p className="text-slate-500 text-sm">ระบบตัดสต็อกกระทบยอดหน้างาน</p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;
