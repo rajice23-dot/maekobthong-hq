@@ -445,10 +445,10 @@ function App() {
     if (!confirm("ยืนยันการส่งรายงานสรุปยอดประจำวันเข้า LINE?")) return;
     setSendingLine(true);
     fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'sendLineReport' })
-    })
+  method: 'POST',
+  headers: { 'Content-Type': 'text/plain' },
+  body: JSON.stringify({ action: 'sendLineReport' })
+})
       .then(res => res.json())
       .then(res => {
         setSendingLine(false);
