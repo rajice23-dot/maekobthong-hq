@@ -1,8 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzNV4EzEBcmyu6VOwK8AMNEKtRMMPU9cz6h_lGxPRLcb4j5fwDttaVVWtgz5mM1UbzR/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbzNV4EzBCmyu6VOwK8AMNEKtRMMPU9cz6h_lGxPRLcb4j5fwDttaVVWtgz5mM1UbzR/exec"; 
 const GRAMS_PER_BAHT_9999 = 15.16;
+
+// 🎯 ฟังก์ชันช่วยส่งข้อมูลหา Google Apps Script (ป้องกัน CORS Preflight)
+const callApi = async (action, payload = {}) => {
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action, payload })
+    });
+    return await response.json();
+  } catch (error) {
+    console.error("API Error:", error);
+    throw error;
+  }
+};
 
 const safeNum = (val) => {
   const n = Number(val);
@@ -64,7 +79,6 @@ const parseOrderDateInfo = (dateVal, orderId) => {
   return { yearMonth: '', fullDate: '' };
 };
 
-// 🎯 โทนสีหลักอ้างอิงตามภาพตัวอย่าง (Royal Blue, Golden Amber, Slate Navy)
 const PALETTE = {
   blue: '#2563eb',
   amber: '#f59e0b',
@@ -441,94 +455,86 @@ function App() {
     setExpenseForm(prev => ({ ...prev, payer: newPayer, status: autoStatus }));
   };
 
-  const handleSendLineReport = () => {
+  // 1️⃣ แก้ไขระบบส่งรายงานเข้า LINE ให้ผ่าน callApi (ป้องกัน CORS)
+  const handleSendLineReport = async () => {
     if (!confirm("ยืนยันการส่งรายงานสรุปยอดประจำวันเข้า LINE?")) return;
     setSendingLine(true);
-    fetch(API_URL, {
-  method: 'POST',
-  headers: { 'Content-Type': 'text/plain' },
-  body: JSON.stringify({ action: 'sendLineReport' })
-})
-      .then(res => res.json())
-      .then(res => {
-        setSendingLine(false);
-        if (res.status === 'success') {
-          alert("ส่งรายงานสรุปยอดเข้า LINE เรียบร้อยแล้ว!");
-        } else {
-          alert(`เกิดข้อผิดพลาด: ${res.message}`);
-        }
-      })
-      .catch(err => { setSendingLine(false); alert("ไม่สามารถยิงข้อความเข้า LINE ได้"); });
+    try {
+      const res = await callApi('sendLineReport');
+      if (res.status === 'success') {
+        alert("ส่งรายงานสรุปยอดเข้า LINE เรียบร้อยแล้ว!");
+      } else {
+        alert(`เกิดข้อผิดพลาด: ${res.message}`);
+      }
+    } catch (err) {
+      alert("ไม่สามารถยิงข้อความเข้า LINE ได้");
+    } finally {
+      setSendingLine(false);
+    }
   };
 
-  fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 👈 แก้บรรทัดนี้เช่นกัน
-      body: JSON.stringify({ action: 'saveExpense', payload: expenseForm })
-    })
+  // 2️⃣ แก้ไขระบบบันทึกรายจ่ายให้ผ่าน callApi (ป้องกัน CORS)
+  const handleSaveExpense = async (e) => {
+    e.preventDefault();
+    if (!expenseForm.totalAmount || safeNum(expenseForm.totalAmount) <= 0) {
+      return alert("กรุณาระบุจำนวนเงินค่าใช้จ่าย");
+    }
 
     setSubmitting(true);
-    fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'saveExpense', payload: expenseForm })
-    })
-      .then(res => res.json())
-      .then(res => {
-        setSubmitting(false);
-        if (res.status === 'success') {
-          alert("บันทึกรายการค่าใช้จ่ายสำเร็จ!");
-          setExpenseForm({
-            date: todayStr, docType: 'ใบเสร็จรับเงิน', category: 'ค่าน้ำ / ค่าไฟฟ้า / อินเทอร์เน็ต',
-            beforeVat: '', vatAmount: '', totalAmount: '', payer: 'แม่กบทอง', status: 'จ่ายแล้ว', notes: ''
-          });
-          fetchData();
-        } else {
-          alert(`เกิดข้อผิดพลาด: ${res.message}`);
-        }
-      })
-      .catch(err => { setSubmitting(false); alert("ไม่สามารถเชื่อมต่อบันทึกข้อมูลได้"); });
+    try {
+      const res = await callApi('saveExpense', expenseForm);
+      if (res.status === 'success') {
+        alert("บันทึกรายการค่าใช้จ่ายสำเร็จ!");
+        setExpenseForm({
+          date: todayStr, docType: 'ใบเสร็จรับเงิน', category: 'ค่าน้ำ / ค่าไฟฟ้า / อินเทอร์เน็ต',
+          beforeVat: '', vatAmount: '', totalAmount: '', payer: 'แม่กบทอง', status: 'จ่ายแล้ว', notes: ''
+        });
+        fetchData();
+      } else {
+        alert(`เกิดข้อผิดพลาด: ${res.message}`);
+      }
+    } catch (err) {
+      alert("ไม่สามารถเชื่อมต่อบันทึกข้อมูลได้");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleDeleteExpense = (expenseId) => {
+  // 3️⃣ แก้ไขระบบลบรายจ่ายให้ผ่าน callApi (ป้องกัน CORS)
+  const handleDeleteExpense = async (expenseId) => {
     if (!confirm("ยืนยันการลบรายการค่าใช้จ่ายนี้?")) return;
     setSubmitting(true);
-    fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'deleteExpense', payload: { expenseId } })
-    })
-      .then(res => res.json())
-      .then(res => {
-        setSubmitting(false);
-        if (res.status === 'success') {
-          alert("ลบรายการค่าใช้จ่ายเรียบร้อยแล้ว");
-          fetchData();
-        } else {
-          alert(`เกิดข้อผิดพลาด: ${res.message}`);
-        }
-      })
-      .catch(err => { setSubmitting(false); alert("ไม่สามารถเชื่อมต่อลบข้อมูลได้"); });
+    try {
+      const res = await callApi('deleteExpense', { expenseId });
+      if (res.status === 'success') {
+        alert("ลบรายการค่าใช้จ่ายเรียบร้อยแล้ว");
+        fetchData();
+      } else {
+        alert(`เกิดข้อผิดพลาด: ${res.message}`);
+      }
+    } catch (err) {
+      alert("ไม่สามารถเชื่อมต่อลบข้อมูลได้");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleToggleExpenseStatus = (expenseId, currentStatus) => {
+  // 4️⃣ แก้ไขระบบเปลี่ยนสถานะให้ผ่าน callApi (ป้องกัน CORS)
+  const handleToggleExpenseStatus = async (expenseId, currentStatus) => {
     const newStatus = (currentStatus === 'รอจ่ายคืน') ? 'จ่ายคืนแล้ว' : 'รอจ่ายคืน';
     setSubmitting(true);
-    fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'toggleExpenseStatus', payload: { expenseId, newStatus } })
-    })
-      .then(res => res.json())
-      .then(res => {
-        setSubmitting(false);
-        if (res.status === 'success') {
-          fetchData();
-        } else {
-          alert(`เกิดข้อผิดพลาด: ${res.message}`);
-        }
-      })
-      .catch(err => { setSubmitting(false); alert("ไม่สามารถเปลี่ยนสถานะได้"); });
+    try {
+      const res = await callApi('toggleExpenseStatus', { expenseId, newStatus });
+      if (res.status === 'success') {
+        fetchData();
+      } else {
+        alert(`เกิดข้อผิดพลาด: ${res.message}`);
+      }
+    } catch (err) {
+      alert("ไม่สามารถเปลี่ยนสถานะได้");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const toggleItemSelection = (orderId, itemNo) => {
@@ -543,19 +549,33 @@ function App() {
     setSelectedItems(newSelections);
   };
 
-  fetch(API_URL, { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 👈 แก้บรรทัดนี้
-      body: JSON.stringify({ action: 'saveStockOut', payload: payload }) 
-    })
+  // 5️⃣ แก้ไขระบบตัดสต็อกให้ผ่าน callApi (ป้องกัน CORS)
+  const handleConfirmStockOut = async () => {
+    if (batch.selectedCount === 0) return alert("กรุณาติ๊กเลือกชิ้นงานอย่างน้อย 1 รายการเพื่อตัดขาย");
+    if (!confirm(`ยืนยันบันทึกตัดขายล็อตนี้จำนวน ${batch.selectedCount} รายการ?\n\nยอดกำไรสุทธิจริง: ฿${Math.round(batch.totalPnLAll).toLocaleString()}`)) return;
+    
+    setSubmitting(true);
+    const payload = {
+      selectedCount: batch.selectedCount, goldWeight: batch.goldWeight, silverWeight: batch.silverWeight,
+      goldSalePrice: safeNum(targetPrices.goldSalePricePerBaht), silverSalePrice: safeNum(targetPrices.silverSalePricePerGram),
+      totalCost: batch.totalCostAll, totalFee: batch.totalFeeAll, totalTradingPnL: batch.totalTradingPnLAll,
+      netProfitRealized: batch.totalPnLAll, itemKeys: Object.keys(selectedItems).filter(k => selectedItems[k])
+    };
 
-    fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'saveStockOut', payload: payload }) })
-      .then(res => res.json())
-      .then(res => {
-        setSubmitting(false);
-        if (res.status === 'success') { alert(`บันทึกตัดสต็อกส่งขายสำเร็จ!\nรหัสล็อต: ${res.lotId}`); setSelectedItems({}); fetchData(); } 
-        else { alert(`เกิดข้อผิดพลาด: ${res.message}`); }
-      }).catch(err => { setSubmitting(false); alert("ไม่สามารถเชื่อมต่อบันทึกข้อมูลได้"); });
+    try {
+      const res = await callApi('saveStockOut', payload);
+      if (res.status === 'success') { 
+        alert(`บันทึกตัดสต็อกส่งขายสำเร็จ!\nรหัสล็อต: ${res.lotId}`); 
+        setSelectedItems({}); 
+        fetchData(); 
+      } else { 
+        alert(`เกิดข้อผิดพลาด: ${res.message}`); 
+      }
+    } catch (err) {
+      alert("ไม่สามารถเชื่อมต่อบันทึกข้อมูลได้");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
