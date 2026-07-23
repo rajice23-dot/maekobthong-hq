@@ -131,35 +131,36 @@ function App() {
   const [selectedItems, setSelectedItems] = useState({});
   const [targetPrices, setTargetPrices] = useState({ goldSalePricePerBaht: '', silverSalePricePerGram: '' });
 
-  const fetchData = () => {
+  // 🎯 ดึงข้อมูลหน้าแรกผ่าน callApi เพื่อแก้ปัญหา CORS แบบ 100%
+  const fetchData = async () => {
     setLoading(true);
-    fetch(`${API_URL}?action=getDashboard`)
-      .then(res => res.json())
-      .then(result => {
-        if (result && result.status === "success") {
-          setSheetData({
-            orders: Array.isArray(result.orders) ? result.orders : [],
-            orderDetails: Array.isArray(result.orderDetails) ? result.orderDetails : [],
-            stockOutRecords: Array.isArray(result.stockOutRecords) ? result.stockOutRecords : [],
-            members: Array.isArray(result.members) ? result.members : [],
-            expenses: Array.isArray(result.expenses) ? result.expenses : [],
-            metrics: result.metrics || { totalAssetValue: 0, totalOrdersCount: 0 }
-          });
-          if (Array.isArray(result.orders) && result.orders.length > 0) {
-            const lastOrder = result.orders[result.orders.length - 1];
-            const parsed = parseOrderDateInfo(lastOrder.date, lastOrder.orderId);
-            if (parsed.fullDate) setSelectedDate(parsed.fullDate);
-          }
-          setError(null);
-        } else {
-          setError(result?.message || "รูปแบบข้อมูลไม่ถูกต้อง");
+    try {
+      const result = await callApi('getDashboard');
+      if (result && result.status === "success") {
+        setSheetData({
+          orders: Array.isArray(result.orders) ? result.orders : [],
+          orderDetails: Array.isArray(result.orderDetails) ? result.orderDetails : [],
+          stockOutRecords: Array.isArray(result.stockOutRecords) ? result.stockOutRecords : [],
+          members: Array.isArray(result.members) ? result.members : [],
+          expenses: Array.isArray(result.expenses) ? result.expenses : [],
+          metrics: result.metrics || { totalAssetValue: 0, totalOrdersCount: 0 }
+        });
+        
+        if (Array.isArray(result.orders) && result.orders.length > 0) {
+          const lastOrder = result.orders[result.orders.length - 1];
+          const parsed = parseOrderDateInfo(lastOrder.date, lastOrder.orderId);
+          if (parsed.fullDate) setSelectedDate(parsed.fullDate);
         }
-        setLoading(false);
-      })
-      .catch(err => {
-        setError("ไม่สามารถเชื่อมต่อ Google Sheets ได้");
-        setLoading(false);
-      });
+        setError(null);
+      } else {
+        setError(result?.message || "รูปแบบข้อมูลไม่ถูกต้อง");
+      }
+    } catch (err) {
+      console.error("Fetch Data Error:", err);
+      setError("ไม่สามารถเชื่อมต่อ Google Sheets ได้");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchData(); }, []);
