@@ -461,11 +461,11 @@ function App() {
       .catch(err => { setSendingLine(false); alert("ไม่สามารถยิงข้อความเข้า LINE ได้"); });
   };
 
-  const handleSaveExpense = (e) => {
-    e.preventDefault();
-    if (!expenseForm.totalAmount || safeNum(expenseForm.totalAmount) <= 0) {
-      return alert("กรุณาระบุจำนวนเงินค่าใช้จ่าย");
-    }
+  fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 👈 แก้บรรทัดนี้เช่นกัน
+      body: JSON.stringify({ action: 'saveExpense', payload: expenseForm })
+    })
 
     setSubmitting(true);
     fetch(API_URL, {
@@ -543,16 +543,11 @@ function App() {
     setSelectedItems(newSelections);
   };
 
-  const handleConfirmStockOut = () => {
-    if (batch.selectedCount === 0) return alert("กรุณาติ๊กเลือกชิ้นงานอย่างน้อย 1 รายการเพื่อตัดขาย");
-    if (!confirm(`ยืนยันบันทึกตัดขายล็อตนี้จำนวน ${batch.selectedCount} รายการ?\n\nยอดกำไรสุทธิจริง: ฿${Math.round(batch.totalPnLAll).toLocaleString()}`)) return;
-    setSubmitting(true);
-    const payload = {
-      selectedCount: batch.selectedCount, goldWeight: batch.goldWeight, silverWeight: batch.silverWeight,
-      goldSalePrice: safeNum(targetPrices.goldSalePricePerBaht), silverSalePrice: safeNum(targetPrices.silverSalePricePerGram),
-      totalCost: batch.totalCostAll, totalFee: batch.totalFeeAll, totalTradingPnL: batch.totalTradingPnLAll,
-      netProfitRealized: batch.totalPnLAll, itemKeys: Object.keys(selectedItems).filter(k => selectedItems[k])
-    };
+  fetch(API_URL, { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // 👈 แก้บรรทัดนี้
+      body: JSON.stringify({ action: 'saveStockOut', payload: payload }) 
+    })
 
     fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'saveStockOut', payload: payload }) })
       .then(res => res.json())
