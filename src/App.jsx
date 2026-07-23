@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzNV4EzEBcmyu6VOwK8AMNEKtRMMPU9cz6h_lGxPRLcb4j5fwDttaVVWtgz5mM1UbzR/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbzNV4EzBCmyu6VOwK8AMNEKtRMMPU9cz6h_lGxPRLcb4j5fwDttaVVWtgz5mM1UbzR/exec"; 
 const GRAMS_PER_BAHT_9999 = 15.16;
 
 // 🎯 ฟังก์ชันช่วยส่งข้อมูลหา Google Apps Script (ป้องกัน CORS Preflight)
@@ -131,7 +131,7 @@ function App() {
   const [selectedItems, setSelectedItems] = useState({});
   const [targetPrices, setTargetPrices] = useState({ goldSalePricePerBaht: '', silverSalePricePerGram: '' });
 
-  // 🎯 ดึงข้อมูลหน้าแรกผ่าน callApi เพื่อแก้ปัญหา CORS แบบ 100%
+  // 🎯 ดึงข้อมูลหน้าแรกผ่าน callApi เพื่อแก้ปัญหา CORS
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -456,7 +456,7 @@ function App() {
     setExpenseForm(prev => ({ ...prev, payer: newPayer, status: autoStatus }));
   };
 
-  // 1️⃣ แก้ไขระบบส่งรายงานเข้า LINE ให้ผ่าน callApi (ป้องกัน CORS)
+  // 1️⃣ ระบบส่งรายงานเข้า LINE
   const handleSendLineReport = async () => {
     if (!confirm("ยืนยันการส่งรายงานสรุปยอดประจำวันเข้า LINE?")) return;
     setSendingLine(true);
@@ -474,7 +474,7 @@ function App() {
     }
   };
 
-  // 2️⃣ แก้ไขระบบบันทึกรายจ่ายให้ผ่าน callApi (ป้องกัน CORS)
+  // 2️⃣ ระบบบันทึกรายจ่าย
   const handleSaveExpense = async (e) => {
     e.preventDefault();
     if (!expenseForm.totalAmount || safeNum(expenseForm.totalAmount) <= 0) {
@@ -501,7 +501,7 @@ function App() {
     }
   };
 
-  // 3️⃣ แก้ไขระบบลบรายจ่ายให้ผ่าน callApi (ป้องกัน CORS)
+  // 3️⃣ ระบบลบรายจ่าย
   const handleDeleteExpense = async (expenseId) => {
     if (!confirm("ยืนยันการลบรายการค่าใช้จ่ายนี้?")) return;
     setSubmitting(true);
@@ -520,7 +520,7 @@ function App() {
     }
   };
 
-  // 4️⃣ แก้ไขระบบเปลี่ยนสถานะให้ผ่าน callApi (ป้องกัน CORS)
+  // 4️⃣ ระบบเปลี่ยนสถานะรายจ่าย
   const handleToggleExpenseStatus = async (expenseId, currentStatus) => {
     const newStatus = (currentStatus === 'รอจ่ายคืน') ? 'จ่ายคืนแล้ว' : 'รอจ่ายคืน';
     setSubmitting(true);
@@ -550,7 +550,128 @@ function App() {
     setSelectedItems(newSelections);
   };
 
-  // 5️⃣ แก้ไขระบบตัดสต็อกให้ผ่าน callApi (ป้องกัน CORS)
+  // 🖨️ 5️⃣ ฟังก์ชันเพิ่มใหม่: พิมพ์ใบหาของในตู้เซฟ (A4 แนวนอน Landscape)
+  const handlePrintSelected = () => {
+    const selectedList = detailsList.filter(item => {
+      const key = `${cleanStr(item.orderId)}-${item.itemNo}`;
+      return !!selectedItems[key] && !metrics.soldItemKeys.has(key);
+    });
+
+    if (selectedList.length === 0) {
+      alert("กรุณาติ๊กเลือกชิ้นงานที่ต้องการพิมพ์อย่างน้อย 1 รายการครับ");
+      return;
+    }
+
+    let totalGoldW = 0;
+    let totalSilverW = 0;
+    let totalSum = 0;
+
+    selectedList.forEach(item => {
+      const w = safeNum(item.weightAfter);
+      const tot = safeNum(item.itemTotal);
+      if (item.itemType === 'ทอง') totalGoldW += w;
+      if (item.itemType === 'เงิน') totalSilverW += w;
+      totalSum += tot;
+    });
+
+    const nowStr = new Date().toLocaleString('th-TH');
+    const printWindow = window.open('', '_blank', 'width=1100,height=800');
+    if (!printWindow) {
+      alert("กรุณาอนุญาตให้เปิด Pop-up บนเบราว์เซอร์เพื่อพิมพ์เอกสารครับ");
+      return;
+    }
+
+    const rowsHtml = selectedList.map((item, index) => `
+      <tr style="border-bottom: 1px solid #cbd5e1; text-align: center; height: 38px;">
+        <td style="border: 1px solid #cbd5e1; width: 45px;"><div style="width: 15px; height: 15px; border: 1.5px solid #475569; margin: auto; border-radius: 3px;"></div></td>
+        <td style="border: 1px solid #cbd5e1; font-weight: bold;">${index + 1}</td>
+        <td style="border: 1px solid #cbd5e1; font-family: sans-serif; font-weight: 600;">${item.orderId}</td>
+        <td style="border: 1px solid #cbd5e1; font-weight: bold; color: ${item.itemType === 'ทอง' ? '#b45309' : '#334155'};">${item.itemType}</td>
+        <td style="border: 1px solid #cbd5e1; text-align: right; padding-right: 12px; font-weight: bold; color: #2563eb;">${safeNum(item.weightAfter).toFixed(2)} g</td>
+        <td style="border: 1px solid #cbd5e1; font-weight: bold; color: #059669;">${safeNum(item.percent)}%</td>
+        <td style="border: 1px solid #cbd5e1; text-align: right; padding-right: 12px;">฿${safeNum(item.marketPrice).toLocaleString()}</td>
+        <td style="border: 1px solid #cbd5e1; text-align: right; padding-right: 12px; font-weight: bold;">฿${safeNum(item.itemTotal).toLocaleString()}</td>
+        <td style="border: 1px solid #cbd5e1; text-align: left; padding-left: 8px;"></td>
+      </tr>
+    `).join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>ใบสั่งจัดสินค้าในตู้เซฟ - ร้านแม่กบทอง</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          body { font-family: 'Sarabun', 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 12px; color: #0f172a; font-size: 13px; }
+          .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 12px; }
+          .title { font-size: 20px; font-weight: bold; color: #0f172a; }
+          .subtitle { font-size: 12px; color: #475569; }
+          .summary-box { display: flex; gap: 24px; margin-bottom: 12px; background: #f8fafc; padding: 10px 16px; border-radius: 8px; border: 1px solid #cbd5e1; }
+          .summary-item { font-size: 13px; }
+          .summary-item strong { color: #0f172a; font-size: 14px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 5px; }
+          th { background-color: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px; font-size: 12px; color: #334155; }
+          td { padding: 4px; font-size: 12px; }
+          .footer { margin-top: 25px; display: flex; justify-content: space-between; font-size: 12px; color: #475569; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <div class="title">🏆 ร้านแม่กบทอง — ใบสั่งจัดสินค้าในตู้เซฟ (Pick List)</div>
+            <div class="subtitle">ใช้สำหรับเดินตรวจเช็กและหยิบสินค้าในตู้เซฟเพื่อตัดสต็อกส่งขาย</div>
+          </div>
+          <div style="text-align: right;">
+            <div style="font-weight: bold; font-size: 13px;">วันที่พิมพ์: ${nowStr}</div>
+            <div style="font-size: 13px; color: #2563eb; font-weight: bold; margin-top: 2px;">จำนวนรายการที่เลือก: ${selectedList.length} ชิ้น</div>
+          </div>
+        </div>
+
+        <div class="summary-box">
+          <div class="summary-item">น้ำหนักทองคำรวม: <strong style="color: #b45309;">${totalGoldW.toFixed(2)} กรัม</strong></div>
+          <div class="summary-item">น้ำหนักเงินรวม: <strong style="color: #475569;">${totalSilverW.toFixed(2)} กรัม</strong></div>
+          <div class="summary-item">มูลค่ารับซื้อสุทธิรวม: <strong style="color: #2563eb;">฿${Math.round(totalSum).toLocaleString()}</strong></div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 45px;">เช็ก</th>
+              <th style="width: 45px;">ลำดับ</th>
+              <th style="width: 140px;">รหัสบิล (OrderID)</th>
+              <th style="width: 80px;">ประเภท</th>
+              <th style="width: 110px;">น้ำหนัก (g)</th>
+              <th style="width: 90px;">X-Ray %</th>
+              <th style="width: 110px;">ราคาตลาด</th>
+              <th style="width: 120px;">รับซื้อสุทธิ</th>
+              <th>หมายเหตุ / ตำแหน่งจัดเก็บ</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div class="footer">
+          <div>ผู้พิมพ์รายการ: ...........................................................</div>
+          <div>ผู้จัดเตรียมของในตู้เซฟ: ...........................................................</div>
+          <div>ผู้ตรวจสอบสินค้า: ...........................................................</div>
+        </div>
+
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+  // 6️⃣ ระบบตัดสต็อกส่งขาย
   const handleConfirmStockOut = async () => {
     if (batch.selectedCount === 0) return alert("กรุณาติ๊กเลือกชิ้นงานอย่างน้อย 1 รายการเพื่อตัดขาย");
     if (!confirm(`ยืนยันบันทึกตัดขายล็อตนี้จำนวน ${batch.selectedCount} รายการ?\n\nยอดกำไรสุทธิจริง: ฿${Math.round(batch.totalPnLAll).toLocaleString()}`)) return;
@@ -783,7 +904,7 @@ function App() {
                   </div>
                 </div>
 
-                {/* 🎯 สรุปกำไรสุทธิแท้จริง ย้ายมาไว้ล่างสุดของ Dashboard หน้าแรก */}
+                {/* สรุปกำไรสุทธิแท้จริง */}
                 <div className="p-6 bg-[#0f172a] text-white rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-center gap-4">
                   <div>
                     <span className="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 font-bold text-[10px] rounded border border-blue-400/30 uppercase tracking-wider">
@@ -807,7 +928,7 @@ function App() {
             {currentTab === 'crm' && (
               <div className="space-y-6">
                 
-                {/* 4 การ์ดอินโฟกราฟิก คุมโทนสีตามภาพตัวอย่าง */}
+                {/* 4 การ์ดอินโฟกราฟิก */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   
                   {/* การ์ด 1: สรุปจำนวนลูกค้า */}
@@ -1045,19 +1166,29 @@ function App() {
 
                 {/* ตารางเลือกชิ้นงาน */}
                 <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
-                  <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 pb-3 border-b border-slate-100">
                     <div>
                       <h3 className="text-base font-bold text-slate-800">เลือกชิ้นงานจากตู้เซฟส่งขาย</h3>
                       <p className="text-xs text-slate-400">พบ {filteredDetailsList.length} รายการที่ยังไม่ได้ขาย</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <div className="flex bg-slate-100 p-0.5 rounded-lg text-xs font-medium">
                         <button onClick={() => setItemTypeFilter('All')} className={`px-2.5 py-1 rounded ${itemTypeFilter === 'All' ? 'bg-white text-slate-800 font-bold shadow-2xs' : 'text-slate-500'}`}>ทั้งหมด</button>
                         <button onClick={() => setItemTypeFilter('ทอง')} className={`px-2.5 py-1 rounded ${itemTypeFilter === 'ทอง' ? 'bg-amber-500 text-white font-bold' : 'text-slate-500'}`}>ทองคำ</button>
                         <button onClick={() => setItemTypeFilter('เงิน')} className={`px-2.5 py-1 rounded ${itemTypeFilter === 'เงิน' ? 'bg-slate-700 text-white font-bold' : 'text-slate-500'}`}>เงิน</button>
                       </div>
+                      
                       <button onClick={toggleSelectAllFiltered} className="text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100">
                         เลือก/ยกเลิก ทั้งหมด
+                      </button>
+
+                      {/* 🖨️ ปุ่มเพิ่มใหม่: พิมพ์ใบหาของตู้เซฟ */}
+                      <button 
+                        onClick={handlePrintSelected} 
+                        disabled={batch.selectedCount === 0}
+                        className={`text-xs font-bold px-3.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 shadow-2xs ${batch.selectedCount > 0 ? 'bg-slate-800 hover:bg-slate-700 text-white cursor-pointer active:scale-95' : 'bg-slate-100 text-slate-400 cursor-not-allowed'}`}
+                      >
+                        🖨️ พิมพ์ใบหาของ ({batch.selectedCount})
                       </button>
                     </div>
                   </div>
