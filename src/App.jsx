@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
-const API_URL = "https://script.google.com/macros/s/AKfycbzNV4EzEBcmyu6VOwK8AMNEKtRMMPU9cz6h_lGxPRLcb4j5fwDttaVVWtgz5mM1UbzR/exec"; 
+// 🔗 แก้ไข API_URL ให้ถูกต้อง (เป็นตัว I ใหญ่)
+const API_URL = "https://script.google.com/macros/s/AKfycbzNV4EzBCmyu6VOwK8AMNEKtRMMPU9cz6h_IGxPRLcb4j5fwDttaVVWtgz5mM1UbzR/exec"; 
 const GRAMS_PER_BAHT_9999 = 15.16;
 
-// 🎯 ฟังก์ชันช่วยส่งข้อมูลหา Google Apps Script (ป้องกัน CORS Preflight)
 const callApi = async (action, payload = {}) => {
   try {
     const response = await fetch(API_URL, {
@@ -131,7 +131,6 @@ function App() {
   const [selectedItems, setSelectedItems] = useState({});
   const [targetPrices, setTargetPrices] = useState({ goldSalePricePerBaht: '', silverSalePricePerGram: '' });
 
-  // 🎯 ดึงข้อมูลหน้าแรกผ่าน callApi เพื่อแก้ปัญหา CORS
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -456,7 +455,6 @@ function App() {
     setExpenseForm(prev => ({ ...prev, payer: newPayer, status: autoStatus }));
   };
 
-  // 1️⃣ ระบบส่งรายงานเข้า LINE
   const handleSendLineReport = async () => {
     if (!confirm("ยืนยันการส่งรายงานสรุปยอดประจำวันเข้า LINE?")) return;
     setSendingLine(true);
@@ -474,7 +472,6 @@ function App() {
     }
   };
 
-  // 2️⃣ ระบบบันทึกรายจ่าย
   const handleSaveExpense = async (e) => {
     e.preventDefault();
     if (!expenseForm.totalAmount || safeNum(expenseForm.totalAmount) <= 0) {
@@ -501,7 +498,6 @@ function App() {
     }
   };
 
-  // 3️⃣ ระบบลบรายจ่าย
   const handleDeleteExpense = async (expenseId) => {
     if (!confirm("ยืนยันการลบรายการค่าใช้จ่ายนี้?")) return;
     setSubmitting(true);
@@ -520,7 +516,6 @@ function App() {
     }
   };
 
-  // 4️⃣ ระบบเปลี่ยนสถานะรายจ่าย
   const handleToggleExpenseStatus = async (expenseId, currentStatus) => {
     const newStatus = (currentStatus === 'รอจ่ายคืน') ? 'จ่ายคืนแล้ว' : 'รอจ่ายคืน';
     setSubmitting(true);
@@ -550,7 +545,7 @@ function App() {
     setSelectedItems(newSelections);
   };
 
-  // 🖨️ 5️⃣ ฟังก์ชันเพิ่มใหม่: พิมพ์ใบหาของในตู้เซฟ (A4 แนวนอน Landscape)
+  // 🖨️ ฟังก์ชันพิมพ์ใบหาของในตู้เซฟ (A4 แนวนอน Landscape)
   const handlePrintSelected = () => {
     const selectedList = detailsList.filter(item => {
       const key = `${cleanStr(item.orderId)}-${item.itemNo}`;
@@ -671,7 +666,6 @@ function App() {
     printWindow.document.close();
   };
 
-  // 6️⃣ ระบบตัดสต็อกส่งขาย
   const handleConfirmStockOut = async () => {
     if (batch.selectedCount === 0) return alert("กรุณาติ๊กเลือกชิ้นงานอย่างน้อย 1 รายการเพื่อตัดขาย");
     if (!confirm(`ยืนยันบันทึกตัดขายล็อตนี้จำนวน ${batch.selectedCount} รายการ?\n\nยอดกำไรสุทธิจริง: ฿${Math.round(batch.totalPnLAll).toLocaleString()}`)) return;
@@ -702,8 +696,6 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#f8f6f2] text-slate-900 font-sans antialiased relative">
-      
-      {/* 🎯 สไตล์การโหลดฟอนต์ Sarabun (ไทย) และ Google Sans (อังกฤษ/ตัวเลข) */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
         @import url('https://fonts.cdnfonts.com/css/google-sans');
@@ -716,7 +708,6 @@ function App() {
         }
       `}</style>
 
-      {/* แถบเมนูด้านบน คุมโทนสะอาด สไตล์มินิมอล */}
       <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/80 border-b border-slate-200/80 px-8 py-3.5 flex justify-between items-center shadow-xs">
         <div className="flex items-center space-x-3">
           <div className="w-3.5 h-3.5 rounded-full bg-blue-600"></div>
@@ -749,7 +740,6 @@ function App() {
 
         {!loading && !error && (
           <>
-            {/* หัวข้อและตัวกรองประจำหน้า */}
             {(currentTab === 'dashboard' || currentTab === 'reconciliation' || currentTab === 'history' || currentTab === 'expenses') && (
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
                 <div>
@@ -796,8 +786,6 @@ function App() {
             {/* TAB 1: DASHBOARD */}
             {currentTab === 'dashboard' && (
               <div className="space-y-6">
-                
-                {/* สรุปการเงิน 4 การ์ดหลัก */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="p-5 bg-[#0f172a] text-white rounded-2xl shadow-sm space-y-1">
                     <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">{viewMode === 'daily' ? `ยอดรับซื้อประจำวัน` : `ยอดรับซื้อสะสม`}</p>
@@ -820,7 +808,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* กราฟ 2 ใบ */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
                     <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">แนวโน้มยอดเงินรับซื้อรายเดือน</h3>
@@ -855,7 +842,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* คลังสินค้าในตู้เซฟ */}
                 <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4">
                   <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">ทองคำและเงินในตู้เซฟ (ยังไม่ได้ขาย)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -885,7 +871,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* ค่าสกัดรอรับรู้ */}
                 <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-3">
                   <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">ผลรวมค่าสกัดที่รอเปลี่ยนเป็นกำไร</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -904,7 +889,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* สรุปกำไรสุทธิแท้จริง */}
                 <div className="p-6 bg-[#0f172a] text-white rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-center gap-4">
                   <div>
                     <span className="px-2.5 py-0.5 bg-blue-500/20 text-blue-300 font-bold text-[10px] rounded border border-blue-400/30 uppercase tracking-wider">
@@ -920,18 +904,13 @@ function App() {
                     </p>
                   </div>
                 </div>
-
               </div>
             )}
 
             {/* TAB 2: CRM */}
             {currentTab === 'crm' && (
               <div className="space-y-6">
-                
-                {/* 4 การ์ดอินโฟกราฟิก */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  
-                  {/* การ์ด 1: สรุปจำนวนลูกค้า */}
                   <div className="p-5 bg-gradient-to-br from-blue-600 to-blue-800 text-white rounded-2xl shadow-sm flex flex-col justify-between">
                     <div>
                       <p className="text-xs font-medium text-blue-100">จำนวนลูกค้าในระบบ</p>
@@ -943,7 +922,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* การ์ด 2: โดนัทช่องทาง */}
                   <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs flex flex-col">
                     <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center mb-2">สัดส่วนช่องทางที่รู้จักร้าน</h3>
                     <div className="flex-1 min-h-[140px]">
@@ -961,7 +939,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* การ์ด 3: โดนัทช่วงอายุ */}
                   <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs flex flex-col">
                     <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center mb-2">สัดส่วนช่วงอายุลูกค้า</h3>
                     <div className="flex-1 min-h-[140px]">
@@ -979,7 +956,6 @@ function App() {
                     </div>
                   </div>
 
-                  {/* การ์ด 4: หลอดพื้นที่ Top 5 */}
                   <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs flex flex-col justify-between">
                     <h3 className="text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center mb-3">5 อันดับพื้นที่ลูกค้าหลัก</h3>
                     <div className="space-y-2.5 flex-1 justify-center flex flex-col">
@@ -999,10 +975,8 @@ function App() {
                       }) : (<div className="text-center text-slate-400 text-xs">ไม่มีข้อมูลพื้นที่</div>)}
                     </div>
                   </div>
-
                 </div>
 
-                {/* Top 3 VIP */}
                 <div className="p-5 bg-amber-50/60 border border-amber-200/80 rounded-2xl">
                   <h3 className="text-xs font-bold text-amber-900 uppercase tracking-wider mb-3">ลูกค้ามียอดขายสูงสุด 3 อันดับแรก (Top VIPs)</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1021,7 +995,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* ตารางทำเนียบลูกค้า */}
                 <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 pb-3 border-b border-slate-100">
                     <div>
@@ -1088,7 +1061,6 @@ function App() {
                     </div>
                   )}
                 </div>
-
               </div>
             )}
 
@@ -1132,7 +1104,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* แผงคำนวณราคาขายส่ง */}
                 <div className="p-6 bg-[#0f172a] text-white rounded-2xl shadow-md space-y-4">
                   <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                     <h4 className="font-bold text-base">ประเมินและยืนยันส่งขายโรงหลอม</h4>
@@ -1164,7 +1135,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* ตารางเลือกชิ้นงาน */}
                 <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 pb-3 border-b border-slate-100">
                     <div>
@@ -1182,7 +1152,7 @@ function App() {
                         เลือก/ยกเลิก ทั้งหมด
                       </button>
 
-                      {/* 🖨️ ปุ่มเพิ่มใหม่: พิมพ์ใบหาของตู้เซฟ */}
+                      {/* 🖨️ ปุ่มพิมพ์ใบหาของตู้เซฟ A4 แนวนอน */}
                       <button 
                         onClick={handlePrintSelected} 
                         disabled={batch.selectedCount === 0}
@@ -1245,7 +1215,6 @@ function App() {
                     </div>
                   )}
                 </div>
-
               </div>
             )}
 
@@ -1333,8 +1302,6 @@ function App() {
             {/* TAB 5: EXPENSES */}
             {currentTab === 'expenses' && (
               <div className="space-y-6">
-                
-                {/* แผงสรุปงบประมาณค่าใช้จ่าย */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="p-5 bg-[#0f172a] text-white rounded-2xl shadow-xs space-y-1">
                     <p className="text-[11px] font-medium text-slate-400 uppercase">กำไรสุทธิแท้จริง (True Net Profit)</p>
@@ -1370,7 +1337,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* ฟอร์มบันทึกค่าใช้จ่าย */}
                 <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
                   <h3 className="text-base font-bold text-slate-800 mb-4 pb-2 border-b border-slate-100">
                     บันทึกค่าใช้จ่ายหน้าร้านประจำวัน
@@ -1378,7 +1344,6 @@ function App() {
 
                   <form onSubmit={handleSaveExpense} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
-                      
                       <div>
                         <label className="block text-xs font-semibold text-slate-600 mb-1">วันที่จ่ายเงิน</label>
                         <input 
@@ -1455,7 +1420,6 @@ function App() {
                           <option value="จ่ายคืนแล้ว">จ่ายคืนแล้ว</option>
                         </select>
                       </div>
-
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
@@ -1511,7 +1475,6 @@ function App() {
                   </form>
                 </div>
 
-                {/* ตารางรายการค่าใช้จ่าย */}
                 <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs">
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4 pb-3 border-b border-slate-100">
                     <div>
@@ -1595,10 +1558,8 @@ function App() {
                     </div>
                   )}
                 </div>
-
               </div>
             )}
-
           </>
         )}
       </main>
@@ -1682,7 +1643,6 @@ function App() {
           </div>
         </div>
       )}
-
     </div>
   );
 }
