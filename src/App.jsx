@@ -92,12 +92,16 @@ const PIE_COLORS = ['#2563eb', '#f59e0b', '#10b981', '#0f172a', '#8b5cf6', '#e11
 function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
   const [sheetData, setSheetData] = useState({ 
-    orders: [], orderDetails: [], stockOutRecords: [], members: [], expenses: [], metrics: { totalAssetValue: 0, totalOrdersCount: 0 }
+    orders: [], orderDetails: [], stockOutRecords: [], members: [], expenses: [], capitalRecords: [], metrics: { totalAssetValue: 0, totalOrdersCount: 0 }
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [sendingLine, setSendingLine] = useState(false);
+
+  // Pop-up บันทึกเติมเงินทุน
+  const [showCapitalModal, setShowCapitalModal] = useState(false);
+  const [capitalForm, setCapitalForm] = useState({ amount: '', recorder: 'ผู้บริหาร', notes: '' });
 
   const [viewLotDetail, setViewLotDetail] = useState(null);
   const [viewCustomerDetail, setViewCustomerDetail] = useState(null);
@@ -126,11 +130,9 @@ function App() {
   });
 
   const ITEMS_PER_PAGE = 15;
-  const [initialBudget, setInitialBudget] = useState('2000000'); 
   const [selectedItems, setSelectedItems] = useState({});
   const [targetPrices, setTargetPrices] = useState({ goldSalePricePerBaht: '', silverSalePricePerGram: '' });
 
-  // 🎯 ดึงข้อมูลแบบ GET ผ่าน URL Parameter เพื่อทะลวงผ่าน 302 Redirect ได้ 100%
   const fetchData = () => {
     setLoading(true);
     fetch(`${API_URL}?action=getDashboard`)
@@ -143,6 +145,7 @@ function App() {
             stockOutRecords: Array.isArray(result.stockOutRecords) ? result.stockOutRecords : [],
             members: Array.isArray(result.members) ? result.members : [],
             expenses: Array.isArray(result.expenses) ? result.expenses : [],
+            capitalRecords: Array.isArray(result.capitalRecords) ? result.capitalRecords : [],
             metrics: result.metrics || { totalAssetValue: 0, totalOrdersCount: 0 }
           });
           if (Array.isArray(result.orders) && result.orders.length > 0) {
@@ -202,6 +205,15 @@ function App() {
   const stockOutRecordsList = Array.isArray(sheetData?.stockOutRecords) ? sheetData.stockOutRecords : []; 
   const membersList = Array.isArray(sheetData?.members) ? sheetData.members : [];
   const expensesList = Array.isArray(sheetData?.expenses) ? sheetData.expenses : [];
+  const capitalRecordsList = Array.isArray(sheetData?.capitalRecords) ? sheetData.capitalRecords : [];
+
+  // คำนวณเงินทุนรวมที่เคยเติม (ถ้ายังไม่มีการเติมเลย ให้ Default เป็น 2,000,000)
+  const totalInjectedCapital = capitalRecordsList.length > 0 
+    ? capitalRecordsList.reduce((sum, c) => sum + safeNum(c.amount), 0)
+    : 2000000;
+
+  // รวมรายรับจากการส่งขายโรงหลอมทั้งหมด
+  const totalStockOutRevenue = stockOutRecordsList.reduce((sum, r) => sum + safeNum(r.totalCost) + safeNum(r.netProfitRealized), 0);
 
   const uniqueMonths = Array.from(new Set(ordersList.map(o => parseOrderDateInfo(o?.date, o?.orderId).yearMonth).filter(Boolean))).sort().reverse();
   const uniqueDates = Array.from(new Set(ordersList.map(o => parseOrderDateInfo(o?.date, o?.orderId).fullDate).filter(Boolean))).sort().reverse();
@@ -299,7 +311,11 @@ function App() {
     const silverPnL = sSalePrice > 0 ? ((pureSilverGrams * sSalePrice) - silverCost) : 0;
     const silverTradingPnL = silverPnL !== 0 ? (silverPnL - silverFee) : 0;
 
-    const cashBalance = safeNum(initialBudget) - monthlyPurchases - totalActualExpenses;
+    // 🎯 สูตรกระแสเงินสดคงเหลือจริง (คิดรวมเงินที่ขายโรงหลอมได้คืนบวกกลับเข้ามา)
+    const totalPurchasesAll = ordersList.reduce((sum, o) => sum + safeNum(o.grandTotal), 0);
+    const totalExpensesAll = expensesList.reduce((sum, e) => sum + safeNum(e.totalAmount), 0);
+    const cashBalance = totalInjectedCapital + totalStockOutRevenue - totalPurchasesAll - totalExpensesAll;
+
     const inventoryPieData = [{ name: 'ทองคำ', value: goldCost, color: PALETTE.amber }, { name: 'เงิน', value: silverCost, color: PALETTE.slate }].filter(d => d.value > 0);
 
     return {
@@ -473,6 +489,31 @@ function App() {
     }
   };
 
+  // 🎯 บันทึกการเติมเงินทุน
+  const handleSaveCapital = async (e) => {
+    e.preventDefault();
+    if (!capitalForm.amount || safeNum(capitalForm.amount) <= 0) {
+      return alert("กรุณาระบุจำนวนเงินทุนที่ต้องการเติม");
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await callApi('addCapital', capitalForm);
+      if (res.status === 'success') {
+        alert("บันทึกการเติมเงินทุนเรียบร้อยแล้ว!");
+        setShowCapitalModal(false);
+        setCapitalForm({ amount: '', recorder: 'ผู้บริหาร', notes: '' });
+        fetchData();
+      } else {
+        alert(`เกิดข้อผิดพลาด: ${res.message}`);
+      }
+    } catch (err) {
+      alert("ไม่สามารถบันทึกเงินทุนได้");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSaveExpense = async (e) => {
     e.preventDefault();
     if (!expenseForm.totalAmount || safeNum(expenseForm.totalAmount) <= 0) {
@@ -546,7 +587,7 @@ function App() {
     setSelectedItems(newSelections);
   };
 
-  // 🖨️ ฟังก์ชันพิมพ์ใบหาของในตู้เซฟ (A4 แนวนอน Landscape)
+  // 🖨️ พิมพ์ใบหาของในตู้เซฟ (A4 แนวนอน)
   const handlePrintSelected = () => {
     const selectedList = detailsList.filter(item => {
       const key = `${cleanStr(item.orderId)}-${item.itemNo}`;
@@ -787,10 +828,18 @@ function App() {
             {/* TAB 1: DASHBOARD */}
             {currentTab === 'dashboard' && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                {/* 🎯 สรุปการเงิน 5 การ์ดหลัก (เพิ่มสินค้าในเซฟ + ระบบเติมเงินทุน) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                   <div className="p-5 bg-[#0f172a] text-white rounded-2xl shadow-sm space-y-1">
                     <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">{viewMode === 'daily' ? `ยอดรับซื้อประจำวัน` : `ยอดรับซื้อสะสม`}</p>
                     <p className="text-2xl font-bold font-num">฿{safeNum(metrics.monthlyPurchases).toLocaleString()}</p>
+                  </div>
+
+                  {/* 📦 กล่องเพิ่มใหม่ [ข้อ 1]: มูลค่าสินค้าคงคลังในเซฟ */}
+                  <div className="p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl shadow-2xs space-y-1">
+                    <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">มูลค่าสินค้าในเซฟ</p>
+                    <p className="text-2xl font-bold text-amber-700 font-num">฿{Math.round(safeNum(metrics.totalCostAll)).toLocaleString()}</p>
                   </div>
 
                   <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
@@ -798,14 +847,24 @@ function App() {
                     <p className="text-2xl font-bold text-blue-600 font-num">{metrics.customersCount} <span className="text-xs text-slate-500 font-normal">รายการ</span></p>
                   </div>
 
-                  <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-1">
-                    <label className="block text-[11px] font-medium text-slate-400 uppercase tracking-wider">ตั้งงบทุนหมุนเวียน</label>
-                    <input type="number" value={initialBudget} onChange={(e) => setInitialBudget(e.target.value)} className="w-full text-xl font-bold bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-slate-800 font-num focus:outline-none focus:border-blue-500" />
+                  {/* 💰 กล่องเพิ่มใหม่ [ข้อ 2]: ปุ่ม + เติมเงินทุน */}
+                  <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs flex flex-col justify-between">
+                    <div>
+                      <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">ทุนหมุนเวียนสะสม</p>
+                      <p className="text-xl font-bold text-slate-800 font-num mt-1">฿{Math.round(totalInjectedCapital).toLocaleString()}</p>
+                    </div>
+                    <button 
+                      onClick={() => setShowCapitalModal(true)} 
+                      className="mt-2 w-full py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-lg transition-all"
+                    >
+                      + เติมเงินทุน
+                    </button>
                   </div>
 
+                  {/* 💵 กระแสเงินสดคงเหลือจริง */}
                   <div className={`p-5 rounded-2xl shadow-2xs space-y-1 border ${metrics.cashBalance < 200000 ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50/60 border-emerald-200/80 text-emerald-900'}`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-wider">กระแสเงินสดคงเหลือ</p>
-                    <p className="text-2xl font-bold font-num">฿{safeNum(metrics.cashBalance).toLocaleString()}</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-wider">กระแสเงินสดคงเหลือจริง</p>
+                    <p className="text-2xl font-bold font-num">฿{Math.round(safeNum(metrics.cashBalance)).toLocaleString()}</p>
                   </div>
                 </div>
 
@@ -843,17 +902,18 @@ function App() {
                   </div>
                 </div>
 
+                {/* 🎯 [ข้อ 3]: สลับเอา กรัม (g) ขึ้นเป็นตัวใหญ่หลักในส่วนทองคำ 99.99% */}
                 <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4">
                   <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">ทองคำและเงินในตู้เซฟ (ยังไม่ได้ขาย)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="p-4 bg-amber-50/50 rounded-xl border border-amber-200/60 flex justify-between items-center">
                       <div>
                         <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">ทองคำ 99.99%</span>
-                        <p className="text-2xl font-bold text-slate-800 mt-2 font-num">{safeNum(metrics.pureGoldBaht).toFixed(2)} <span className="text-xs font-normal">บาททอง</span></p>
-                        <p className="text-xs text-slate-500 mt-0.5">น้ำหนักดิบรวม: {safeNum(metrics.goldWeight).toFixed(2)} กรัม</p>
+                        <p className="text-2xl font-bold text-slate-800 mt-2 font-num">{(safeNum(metrics.pureGoldBaht) * GRAMS_PER_BAHT_9999).toFixed(2)} <span className="text-xs font-normal">กรัม (g)</span></p>
+                        <p className="text-xs text-slate-500 mt-0.5">ทองคำบริสุทธิ์: {safeNum(metrics.pureGoldBaht).toFixed(2)} บาททอง | ชั่งดิบ: {safeNum(metrics.goldWeight).toFixed(2)} g</p>
                       </div>
                       <div className="text-right bg-white px-3.5 py-2.5 rounded-lg border border-amber-200/80">
-                        <p className="text-[10px] font-medium text-slate-400">ต้นทุนเฉลี่ย</p>
+                        <p className="text-[10px] font-medium text-slate-400">ต้นทุนเฉลี่ย/บาททอง</p>
                         <p className="text-base font-bold text-slate-800 font-num">฿{Math.round(safeNum(metrics.rawGoldAvgCost)).toLocaleString()}</p>
                       </div>
                     </div>
@@ -861,11 +921,11 @@ function App() {
                     <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex justify-between items-center">
                       <div>
                         <span className="text-[10px] font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded">เงินบริสุทธิ์ 99.99%</span>
-                        <p className="text-2xl font-bold text-slate-800 mt-2 font-num">{safeNum(metrics.pureSilverGrams).toFixed(2)} <span className="text-xs font-normal">กรัม</span></p>
+                        <p className="text-2xl font-bold text-slate-800 mt-2 font-num">{safeNum(metrics.pureSilverGrams).toFixed(2)} <span className="text-xs font-normal">กรัม (g)</span></p>
                         <p className="text-xs text-slate-500 mt-0.5">น้ำหนักดิบรวม: {safeNum(metrics.silverWeight).toFixed(2)} กรัม</p>
                       </div>
                       <div className="text-right bg-white px-3.5 py-2.5 rounded-lg border border-slate-200">
-                        <p className="text-[10px] font-medium text-slate-400">ต้นทุนเฉลี่ย</p>
+                        <p className="text-[10px] font-medium text-slate-400">ต้นทุนเฉลี่ย/กรัม</p>
                         <p className="text-base font-bold text-slate-800 font-num">฿{safeNum(metrics.rawSilverAvgCost).toFixed(2)}</p>
                       </div>
                     </div>
@@ -1565,6 +1625,56 @@ function App() {
         )}
       </main>
 
+      {/* 🎯 MODAL เติมเงินทุนเข้าธุรกิจ */}
+      {showCapitalModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-100">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h3 className="font-bold text-slate-800 text-base">บันทึกการเติมเงินทุนหมุนเวียน</h3>
+              <button onClick={() => setShowCapitalModal(false)} className="text-slate-400 hover:text-slate-600 text-sm font-bold">ปิด</button>
+            </div>
+            <form onSubmit={handleSaveCapital} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">จำนวนเงินทุนที่เติม (บาท)</label>
+                <input 
+                  type="number" 
+                  placeholder="เช่น 500000" 
+                  value={capitalForm.amount} 
+                  onChange={(e) => setCapitalForm({...capitalForm, amount: e.target.value})} 
+                  className="w-full px-3 py-2 text-base font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500 font-num"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">ผู้บันทึกรายการ</label>
+                <input 
+                  type="text" 
+                  value={capitalForm.recorder} 
+                  onChange={(e) => setCapitalForm({...capitalForm, recorder: e.target.value})} 
+                  className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">หมายเหตุ</label>
+                <input 
+                  type="text" 
+                  placeholder="เช่น เติมเงินสดสำรองหน้าร้าน" 
+                  value={capitalForm.notes} 
+                  onChange={(e) => setCapitalForm({...capitalForm, notes: e.target.value})} 
+                  className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg font-medium"
+                />
+              </div>
+              <div className="pt-2 flex justify-end gap-2">
+                <button type="button" onClick={() => setShowCapitalModal(false)} className="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-200">ยกเลิก</button>
+                <button type="submit" disabled={submitting} className="px-5 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 disabled:opacity-50">
+                  {submitting ? 'กำลังบันทึก...' : 'บันทึกเติมเงินทุน'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL: ล็อตส่งขาย */}
       {viewLotDetail && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
@@ -1644,6 +1754,7 @@ function App() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
