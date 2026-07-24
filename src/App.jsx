@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 
-// 🔗 แก้ไข API_URL ให้ถูกต้อง (เป็นตัว I ใหญ่)
-const API_URL = "https://script.google.com/macros/s/AKfycbzNV4EzEBcmyu6VOwK8AMNEKtRMMPU9cz6h_lGxPRLcb4j5fwDttaVVWtgz5mM1UbzR/exec"; 
+const API_URL = "https://script.google.com/macros/s/AKfycbzNV4EzBCmyu6VOwK8AMNEKtRMMPU9cz6h_IGxPRLcb4j5fwDttaVVWtgz5mM1UbzR/exec"; 
 const GRAMS_PER_BAHT_9999 = 15.16;
 
 const callApi = async (action, payload = {}) => {
@@ -131,35 +130,37 @@ function App() {
   const [selectedItems, setSelectedItems] = useState({});
   const [targetPrices, setTargetPrices] = useState({ goldSalePricePerBaht: '', silverSalePricePerGram: '' });
 
-  const fetchData = async () => {
+  // 🎯 ดึงข้อมูลแบบ GET ผ่าน URL Parameter เพื่อทะลวงผ่าน 302 Redirect ได้ 100%
+  const fetchData = () => {
     setLoading(true);
-    try {
-      const result = await callApi('getDashboard');
-      if (result && result.status === "success") {
-        setSheetData({
-          orders: Array.isArray(result.orders) ? result.orders : [],
-          orderDetails: Array.isArray(result.orderDetails) ? result.orderDetails : [],
-          stockOutRecords: Array.isArray(result.stockOutRecords) ? result.stockOutRecords : [],
-          members: Array.isArray(result.members) ? result.members : [],
-          expenses: Array.isArray(result.expenses) ? result.expenses : [],
-          metrics: result.metrics || { totalAssetValue: 0, totalOrdersCount: 0 }
-        });
-        
-        if (Array.isArray(result.orders) && result.orders.length > 0) {
-          const lastOrder = result.orders[result.orders.length - 1];
-          const parsed = parseOrderDateInfo(lastOrder.date, lastOrder.orderId);
-          if (parsed.fullDate) setSelectedDate(parsed.fullDate);
+    fetch(`${API_URL}?action=getDashboard`)
+      .then(res => res.json())
+      .then(result => {
+        if (result && result.status === "success") {
+          setSheetData({
+            orders: Array.isArray(result.orders) ? result.orders : [],
+            orderDetails: Array.isArray(result.orderDetails) ? result.orderDetails : [],
+            stockOutRecords: Array.isArray(result.stockOutRecords) ? result.stockOutRecords : [],
+            members: Array.isArray(result.members) ? result.members : [],
+            expenses: Array.isArray(result.expenses) ? result.expenses : [],
+            metrics: result.metrics || { totalAssetValue: 0, totalOrdersCount: 0 }
+          });
+          if (Array.isArray(result.orders) && result.orders.length > 0) {
+            const lastOrder = result.orders[result.orders.length - 1];
+            const parsed = parseOrderDateInfo(lastOrder.date, lastOrder.orderId);
+            if (parsed.fullDate) setSelectedDate(parsed.fullDate);
+          }
+          setError(null);
+        } else {
+          setError(result?.message || "รูปแบบข้อมูลไม่ถูกต้อง");
         }
-        setError(null);
-      } else {
-        setError(result?.message || "รูปแบบข้อมูลไม่ถูกต้อง");
-      }
-    } catch (err) {
-      console.error("Fetch Data Error:", err);
-      setError("ไม่สามารถเชื่อมต่อ Google Sheets ได้");
-    } finally {
-      setLoading(false);
-    }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error("Fetch Error:", err);
+        setError("ไม่สามารถเชื่อมต่อ Google Sheets ได้");
+        setLoading(false);
+      });
   };
 
   useEffect(() => { fetchData(); }, []);
@@ -345,7 +346,7 @@ function App() {
 
   const trueNetProfit = historySummary.netProfitRealized - totalActualExpenses;
 
-  // CRM Logic...
+  // CRM Logic
   const memberMapByPhone = {};
   const memberMapByName = {};
   membersList.forEach(m => {
@@ -1332,7 +1333,7 @@ function App() {
                             <Tooltip formatter={(v) => `฿${v.toLocaleString()}`} />
                           </PieChart>
                         </ResponsiveContainer>
-                      ) : (<p className="text-center text-slate-400 text-[10px]">ไม่มีข้อมูล</p>)}
+                      ) : (<div className="h-full flex items-center justify-center text-slate-400 text-xs">ไม่มีข้อมูล</div>)}
                     </div>
                   </div>
                 </div>
