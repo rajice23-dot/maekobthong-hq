@@ -207,12 +207,12 @@ function App() {
   const expensesList = Array.isArray(sheetData?.expenses) ? sheetData.expenses : [];
   const capitalRecordsList = Array.isArray(sheetData?.capitalRecords) ? sheetData.capitalRecords : [];
 
-  // คำนวณเงินทุนรวมที่เคยเติม (ถ้ายังไม่มีการเติมเลย ให้ Default เป็น 2,000,000)
+  // คำนวณเงินทุนรวมที่เคยเติม (ถ้ายังไม่มีประวัติในชีต ให้ใช้ Default 2,000,000)
   const totalInjectedCapital = capitalRecordsList.length > 0 
     ? capitalRecordsList.reduce((sum, c) => sum + safeNum(c.amount), 0)
     : 2000000;
 
-  // รวมรายรับจากการส่งขายโรงหลอมทั้งหมด
+  // รวมเงินที่เคยขายส่งโรงหลอมได้กลับเข้ามา
   const totalStockOutRevenue = stockOutRecordsList.reduce((sum, r) => sum + safeNum(r.totalCost) + safeNum(r.netProfitRealized), 0);
 
   const uniqueMonths = Array.from(new Set(ordersList.map(o => parseOrderDateInfo(o?.date, o?.orderId).yearMonth).filter(Boolean))).sort().reverse();
@@ -311,7 +311,7 @@ function App() {
     const silverPnL = sSalePrice > 0 ? ((pureSilverGrams * sSalePrice) - silverCost) : 0;
     const silverTradingPnL = silverPnL !== 0 ? (silverPnL - silverFee) : 0;
 
-    // 🎯 สูตรกระแสเงินสดคงเหลือจริง (คิดรวมเงินที่ขายโรงหลอมได้คืนบวกกลับเข้ามา)
+    // 🎯 สูตรกระแสเงินสดคงเหลือจริง
     const totalPurchasesAll = ordersList.reduce((sum, o) => sum + safeNum(o.grandTotal), 0);
     const totalExpensesAll = expensesList.reduce((sum, e) => sum + safeNum(e.totalAmount), 0);
     const cashBalance = totalInjectedCapital + totalStockOutRevenue - totalPurchasesAll - totalExpensesAll;
@@ -489,7 +489,7 @@ function App() {
     }
   };
 
-  // 🎯 บันทึกการเติมเงินทุน
+  // 🎯 บันทึกการเติมเงินทุน (ตรวจสอบ capitalId จริงๆ ก่อนแจ้งเตือน)
   const handleSaveCapital = async (e) => {
     e.preventDefault();
     if (!capitalForm.amount || safeNum(capitalForm.amount) <= 0) {
@@ -499,13 +499,13 @@ function App() {
     setSubmitting(true);
     try {
       const res = await callApi('addCapital', capitalForm);
-      if (res.status === 'success') {
+      if (res && res.capitalId) {
         alert("บันทึกการเติมเงินทุนเรียบร้อยแล้ว!");
         setShowCapitalModal(false);
         setCapitalForm({ amount: '', recorder: 'ผู้บริหาร', notes: '' });
         fetchData();
       } else {
-        alert(`เกิดข้อผิดพลาด: ${res.message}`);
+        alert("ไม่สามารถบันทึกเงินทุนได้: กรุณาเช็กการ Deploy New Version ใน Google Apps Script");
       }
     } catch (err) {
       alert("ไม่สามารถบันทึกเงินทุนได้");
@@ -829,14 +829,13 @@ function App() {
             {currentTab === 'dashboard' && (
               <div className="space-y-6">
                 
-                {/* 🎯 สรุปการเงิน 5 การ์ดหลัก (เพิ่มสินค้าในเซฟ + ระบบเติมเงินทุน) */}
+                {/* 🎯 สรุปการเงิน 5 การ์ดหลัก */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                   <div className="p-5 bg-[#0f172a] text-white rounded-2xl shadow-sm space-y-1">
                     <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">{viewMode === 'daily' ? `ยอดรับซื้อประจำวัน` : `ยอดรับซื้อสะสม`}</p>
                     <p className="text-2xl font-bold font-num">฿{safeNum(metrics.monthlyPurchases).toLocaleString()}</p>
                   </div>
 
-                  {/* 📦 กล่องเพิ่มใหม่ [ข้อ 1]: มูลค่าสินค้าคงคลังในเซฟ */}
                   <div className="p-5 bg-amber-500/10 border border-amber-500/30 rounded-2xl shadow-2xs space-y-1">
                     <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">มูลค่าสินค้าในเซฟ</p>
                     <p className="text-2xl font-bold text-amber-700 font-num">฿{Math.round(safeNum(metrics.totalCostAll)).toLocaleString()}</p>
@@ -847,7 +846,6 @@ function App() {
                     <p className="text-2xl font-bold text-blue-600 font-num">{metrics.customersCount} <span className="text-xs text-slate-500 font-normal">รายการ</span></p>
                   </div>
 
-                  {/* 💰 กล่องเพิ่มใหม่ [ข้อ 2]: ปุ่ม + เติมเงินทุน */}
                   <div className="p-5 bg-white border border-slate-200/80 rounded-2xl shadow-2xs flex flex-col justify-between">
                     <div>
                       <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">ทุนหมุนเวียนสะสม</p>
@@ -861,7 +859,6 @@ function App() {
                     </button>
                   </div>
 
-                  {/* 💵 กระแสเงินสดคงเหลือจริง */}
                   <div className={`p-5 rounded-2xl shadow-2xs space-y-1 border ${metrics.cashBalance < 200000 ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50/60 border-emerald-200/80 text-emerald-900'}`}>
                     <p className="text-[11px] font-semibold uppercase tracking-wider">กระแสเงินสดคงเหลือจริง</p>
                     <p className="text-2xl font-bold font-num">฿{Math.round(safeNum(metrics.cashBalance)).toLocaleString()}</p>
@@ -902,7 +899,6 @@ function App() {
                   </div>
                 </div>
 
-                {/* 🎯 [ข้อ 3]: สลับเอา กรัม (g) ขึ้นเป็นตัวใหญ่หลักในส่วนทองคำ 99.99% */}
                 <div className="p-6 bg-white border border-slate-200/80 rounded-2xl shadow-2xs space-y-4">
                   <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">ทองคำและเงินในตู้เซฟ (ยังไม่ได้ขาย)</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
